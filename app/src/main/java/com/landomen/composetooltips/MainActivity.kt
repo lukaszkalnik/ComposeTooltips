@@ -16,35 +16,38 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.TooltipScope
+import androidx.compose.material3.TooltipState
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.semantics.Role.Companion.RadioButton
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.landomen.composetooltips.ui.theme.ComposeTooltipsTheme
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -137,7 +140,6 @@ private fun PlainTooltipWithCarrotManual() {
         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(16.dp),
         tooltip = {
             PlainTooltip(
-                caretSize = DpSize(32.dp, 16.dp),
                 contentColor = Color.Yellow,
                 containerColor = Color.DarkGray,
                 shadowElevation = 4.dp,
@@ -154,8 +156,6 @@ private fun PlainTooltipWithCarrotManual() {
                         .background(Color.Gray)
                         .padding(8.dp)
                 ) {
-                    Icon(Icons.Default.AccountCircle, contentDescription = null)
-
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text("This is a simple customized plain tooltip")
@@ -187,7 +187,6 @@ fun RichTooltipClick() {
         positionProvider = TooltipDefaults.rememberRichTooltipPositionProvider(8.dp),
         tooltip = {
             RichTooltip(
-                caretSize = TooltipDefaults.caretSize,
                 title = { Text("Title of the tooltip") },
                 action = {
                     TextButton(
@@ -204,7 +203,8 @@ fun RichTooltipClick() {
                 Text("This is the main content of the rich tooltip")
             }
         },
-        state = tooltipState
+        state = tooltipState,
+        onDismissRequest = {},
     ) {
         Button(onClick = {
             scope.launch {
@@ -219,61 +219,94 @@ fun RichTooltipClick() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomRichTooltipClick() {
-    val tooltipState = rememberTooltipState(isPersistent = true)
-    val scope = rememberCoroutineScope()
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberRichTooltipPositionProvider(8.dp),
-        tooltip = {
-            RichTooltip(
-                caretSize = TooltipDefaults.caretSize,
-                colors = TooltipDefaults.richTooltipColors(
-                    containerColor = Color.Black.copy(alpha = 0.9f),
-                    titleContentColor = Color.Green,
-                    contentColor = Color.White,
-                ),
-                shape = RectangleShape,
-                title = {
-                    Row {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Awesome!")
-                    }
-                        },
-                action = {
-                    Row {
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    tooltipState.dismiss()
-                                }
-                            }
-                        ) {
-                            Text("Dismiss")
-                        }
+    var counter by mutableIntStateOf(0)
+    val tooltipState = rememberTooltipState(initialIsVisible = true, isPersistent = true)
 
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    tooltipState.dismiss()
-                                }
-                            }
-                        ) {
-                            Text("Next")
-                        }
-                    }
-                }
-            ) {
-                Text("You've successfully opened a rich tooltip! 🎉")
+    LaunchedEffect(Unit) {
+        tooltipState.show()
+    }
+
+//    LaunchedEffect(counter) {
+//        delay(5.seconds)
+//        tooltipState.dismiss()
+//    }
+
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+            TooltipAnchorPosition.Above,
+            spacingBetweenTooltipAndAnchor = 8.dp
+        ),
+        tooltip = {
+            CustomRichtTooltipContent(
+                tooltipState = tooltipState,
+                counter = counter,
+            )
+        },
+        state = tooltipState,
+        onDismissRequest = {},
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Button(onClick = { ++counter }) {
+                Text("Increase Custom Rich Tooltip Counter")
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun TooltipScope.CustomRichtTooltipContent(
+    tooltipState: TooltipState,
+    counter: Int,
+) {
+    val scope = rememberCoroutineScope()
+
+    RichTooltip(
+        colors = TooltipDefaults.richTooltipColors(
+            containerColor = Color.Black.copy(alpha = 0.9f),
+            titleContentColor = Color.Green,
+            contentColor = Color.White,
+        ),
+        shape = RectangleShape,
+        title = {
+            Row {
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Awesome!")
             }
         },
-        state = tooltipState
+        action = {
+            CustomRichtTooltipAction(scope, tooltipState)
+        }
     ) {
-        Button(onClick = {
-            scope.launch {
-                tooltipState.show()
+        Text(
+            "You've successfully opened a rich tooltip! 🎉\n" +
+                    "You have clicked $counter times."
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun CustomRichtTooltipAction(scope: CoroutineScope, tooltipState: TooltipState) {
+    Row {
+        TextButton(
+            onClick = {
+                scope.launch {
+                    tooltipState.dismiss()
+                }
             }
-        }) {
-            Text(text = "Show Custom Rich Tooltip on Click")
+        ) {
+            Text("Dismiss")
+        }
+
+        TextButton(
+            onClick = {
+                scope.launch {
+                    tooltipState.dismiss()
+                }
+            }
+        ) {
+            Text("Next")
         }
     }
 }
@@ -312,7 +345,7 @@ private fun ShowTwoTooltips() {
 
         TooltipBox(
             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-            tooltip = { PlainTooltip(caretSize = TooltipDefaults.caretSize) { Text("Select option 1") } },
+            tooltip = { PlainTooltip { Text("Select option 1") } },
             state = tooltipState1
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -328,7 +361,7 @@ private fun ShowTwoTooltips() {
 
         TooltipBox(
             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-            tooltip = { PlainTooltip(caretSize = TooltipDefaults.caretSize) { Text("Select option 2") } },
+            tooltip = { PlainTooltip { Text("Select option 2") } },
             state = tooltipState2
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
