@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.DefaultTooltipCaretShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
@@ -34,6 +36,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,32 +70,44 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MainContent(modifier: Modifier = Modifier) {
-    Column(
+    LazyColumn(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = modifier.fillMaxSize()
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        PlainTooltipLongPress()
+//        PlainTooltipLongPress()
+//
+//        Spacer(modifier = Modifier.height(32.dp))
+//
+//        PlainTooltipManual()
+//
+//        Spacer(modifier = Modifier.height(32.dp))
+//
+//        PlainTooltipWithCarrotManual()
+//
+//        Spacer(modifier = Modifier.height(32.dp))
+//
+//        RichTooltipClick()
+//
+//        Spacer(modifier = Modifier.height(32.dp))
 
-        Spacer(modifier = Modifier.height(32.dp))
+        items(20) {
+            Text("Filler content $it")
+        }
 
-        PlainTooltipManual()
+        item {
+            CustomRichTooltipClick()
+        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        items(20) {
+            Text("Filler content $it + 21")
+        }
 
-        PlainTooltipWithCarrotManual()
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        RichTooltipClick()
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        CustomRichTooltipClick()
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        ShowTwoTooltips()
+//        Spacer(modifier = Modifier.height(32.dp))
+//
+//        ShowTwoTooltips()
     }
 }
 
@@ -183,22 +199,29 @@ private fun PlainTooltipWithCarrotManual() {
 fun RichTooltipClick() {
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
+
+    val action: @Composable () -> Unit = {
+        TextButton(
+            onClick = {
+                scope.launch {
+                    tooltipState.dismiss()
+                }
+            }
+        ) {
+            Text("Dismiss")
+        }
+    }
+
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberRichTooltipPositionProvider(8.dp),
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+            positioning = TooltipAnchorPosition.Above,
+            spacingBetweenTooltipAndAnchor = 12.dp,
+        ),
         tooltip = {
             RichTooltip(
                 title = { Text("Title of the tooltip") },
-                action = {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                tooltipState.dismiss()
-                            }
-                        }
-                    ) {
-                        Text("Dismiss")
-                    }
-                }
+                action = action,
+                caretShape = DefaultTooltipCaretShape(),
             ) {
                 Text("This is the main content of the rich tooltip")
             }
@@ -219,35 +242,42 @@ fun RichTooltipClick() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomRichTooltipClick() {
-    var counter by mutableIntStateOf(0)
-    val tooltipState = rememberTooltipState(initialIsVisible = true, isPersistent = true)
+    var counter by remember { mutableIntStateOf(0) }
+    val tooltipState = rememberTooltipState(initialIsVisible = false, isPersistent = true)
 
     LaunchedEffect(Unit) {
         tooltipState.show()
     }
 
-//    LaunchedEffect(counter) {
-//        delay(5.seconds)
-//        tooltipState.dismiss()
-//    }
+    var tooltipPosition by remember {
+        mutableStateOf(TooltipAnchorPosition.Above)
+    }
 
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-            TooltipAnchorPosition.Above,
+            tooltipPosition,
             spacingBetweenTooltipAndAnchor = 8.dp
         ),
         tooltip = {
-            CustomRichtTooltipContent(
+            CustomRichTooltipContent(
                 tooltipState = tooltipState,
-                counter = counter,
+                counter = 0,
             )
         },
         state = tooltipState,
         onDismissRequest = {},
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Button(onClick = { ++counter }) {
-                Text("Increase Custom Rich Tooltip Counter")
+            Button(
+                onClick = {
+                    tooltipPosition = if (tooltipPosition == TooltipAnchorPosition.Above) {
+                        TooltipAnchorPosition.Below
+                    } else {
+                        TooltipAnchorPosition.Above
+                    }
+                }
+            ) {
+                Text("Above / Below")
             }
         }
     }
@@ -255,7 +285,7 @@ fun CustomRichTooltipClick() {
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun TooltipScope.CustomRichtTooltipContent(
+private fun TooltipScope.CustomRichTooltipContent(
     tooltipState: TooltipState,
     counter: Int,
 ) {
@@ -276,7 +306,8 @@ private fun TooltipScope.CustomRichtTooltipContent(
         },
         action = {
             CustomRichtTooltipAction(scope, tooltipState)
-        }
+        },
+        caretShape = DefaultTooltipCaretShape(),
     ) {
         Text(
             "You've successfully opened a rich tooltip! 🎉\n" +
